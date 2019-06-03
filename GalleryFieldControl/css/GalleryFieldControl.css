@@ -1,0 +1,37 @@
+.Fic\.GalleryFieldControl .thumbnail img {
+    border: 1px solid #ddd; 
+    border-radius: 4px; 
+    padding: 5px;
+    width: 150px;
+    height: 150px;
+}
+  
+.Fic\.GalleryFieldControl .thumbnail img:hover {
+    box-shadow: 0 0 2px 1px rgba(0, 140, 186, 0.5);
+    cursor: pointer;
+}
+
+.Fic\.GalleryFieldControl .thumbnail-container {
+    display: inline-block;
+    margin-left: 5px;
+}
+
+.Fic\.GalleryFieldControl .file-name {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    width: 162px;
+    text-align: center;
+}
+
+.Fic\.GalleryFieldControl .file-name:hover {
+    cursor: pointer;
+}
+
+.Fic\.GalleryFieldControl .preview-img {
+    max-width: 100%;
+}
+
+
+
+
