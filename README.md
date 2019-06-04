@@ -14,7 +14,7 @@ PCF control that shows thumbnails of images from entity notes. Control is bound 
 
 ## Features
 
-- Thumbnails of images from notes
+- Thumbnails of images from notes & email attachments
 - Image preview on click on the thumbnail
 - Hide preview image on click
 - Download image on click on the filename
