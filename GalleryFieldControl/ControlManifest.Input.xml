@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <manifest>
-  <control namespace="Fic" constructor="GalleryFieldControl" version="1.1.0" display-name-key="GalleryFieldControl_Display_Key" description-key="GalleryFieldControl_Desc_Key" control-type="standard">
+  <control namespace="Fic" constructor="GalleryFieldControl" version="1.2.0" display-name-key="Fic.GalleryFieldControl" description-key="Fic.GalleryFieldControl" control-type="standard">
     <property name="sampleProperty" display-name-key="Property_Display_Key" description-key="Property_Desc_Key" of-type="SingleLine.Text" usage="bound" required="true" />
+    <property name="thumbnailHeight" display-name-key="Thumbnail Height(px)" description-key="Thumbnail Height(px)" of-type="Whole.None" usage="input" required="false" />
+    <property name="thumbnailWidth" display-name-key="Thumbnail Width(px)" description-key="Thumbnail Width(px)" of-type="Whole.None" usage="input" required="false" />  
     <resources>
       <code path="index.ts" order="1"/>
       <css path="css/GalleryFieldControl.css" order="1"/>

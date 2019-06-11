@@ -28,7 +28,13 @@ export class GalleryFieldControl implements ComponentFramework.StandardControl<I
 
 	private _context: ComponentFramework.Context<IInputs>;
 	private _container: HTMLDivElement;
-	private _mainDiv: HTMLDivElement;
+
+	private _thumbnailHeight: number | null;
+	private _thumbnailWidth: number | null;
+
+	private _notesContainer: HTMLDivElement;
+	private _timelineEmailsContainer: HTMLDivElement;
+
 	private _previewImage: HTMLImageElement;
 
 	private _thumbnailClicked: EventListenerOrEventListenerObject;
@@ -53,15 +59,45 @@ export class GalleryFieldControl implements ComponentFramework.StandardControl<I
 		this._context = context;
 		this._container = container;
 
+		this._thumbnailHeight = context.parameters.thumbnailHeight == undefined ? null : context.parameters.thumbnailHeight.raw;
+		this._thumbnailWidth = context.parameters.thumbnailWidth == undefined ? null : context.parameters.thumbnailWidth.raw;
+
+		let reference: EntityReference = new EntityReference(
+			(<any>context).page.entityTypeName,
+			(<any>context).page.entityId
+		)
+
 		this._thumbnailClicked = this.ThumbnailClicked.bind(this);
 		this._clearPreviewImage = this.ClearPreviewImage.bind(this);
 
-		let mainDiv = document.createElement("div");
-		mainDiv.classList.add("carousel");
+		let notesContainer = document.createElement("div");
+		notesContainer.classList.add("files-group");
+		this._notesContainer = notesContainer;
 
-		this._mainDiv = mainDiv;
+		let notesHeader = document.createElement("div");
+		notesHeader.textContent = reference.typeName == "email" ? "Attachments" : "Notes";
+		notesHeader.classList.add("section-header");
+		notesContainer.appendChild(notesHeader);
 
-		this._container.appendChild(mainDiv);
+		let notes = document.createElement("div");
+		notesContainer.appendChild(notes);
+
+
+		let timelineEmailsContainer = document.createElement("div");
+		timelineEmailsContainer.classList.add("files-group");
+		this._timelineEmailsContainer = timelineEmailsContainer;
+
+		let timelineEmailsHeader = document.createElement("div");
+		timelineEmailsHeader.textContent = "Timeline Emails";
+		timelineEmailsHeader.classList.add("section-header");
+		timelineEmailsContainer.appendChild(timelineEmailsHeader);
+
+		let timelineEmails = document.createElement("div");
+		timelineEmailsContainer.appendChild(timelineEmails);
+
+
+		this._container.appendChild(notesContainer);
+		this._container.appendChild(timelineEmailsContainer);
 
 		let previewImg = document.createElement("img");
 		previewImg.classList.add("preview-img");
@@ -71,12 +107,8 @@ export class GalleryFieldControl implements ComponentFramework.StandardControl<I
 
 		this._container.appendChild(previewImg);
 
-		let reference: EntityReference = new EntityReference(
-			(<any>context).page.entityTypeName,
-			(<any>context).page.entityId
-		)
-
-		this.GetFiles(reference).then(result => this.RenderThumbnails(result));
+		this.GetFiles(reference).then(result => this.RenderThumbnails(result, notes));
+		this.GetEmailAttachemntsFromTimeline(reference).then(result => this.RenderThumbnails(result, timelineEmails));
 	}
 
 
@@ -104,21 +136,23 @@ export class GalleryFieldControl implements ComponentFramework.StandardControl<I
 		// Add code to cleanup control if necessary
 	}
 
+
 	private async GetFiles(ref: EntityReference): Promise<AttachedFile[]> {
-		let attachmentType = ref.typeName == "email" ? "activitymimeattachment": "annotation";
+		let attachmentType = ref.typeName == "email" ? "activitymimeattachment" : "annotation";
 		let fetchXml =
-		"<fetch>" +
-		"  <entity name='"+attachmentType+"'>" +
-		"    <filter>" +
-		"      <condition attribute='objectid' operator='eq' value='" + ref.id + "'/>" +
-		"    </filter>" +
-		"  </entity>" +
-		"</fetch>";	
+			"<fetch>" +
+			"  <entity name='" + attachmentType + "'>" +
+			"    <filter>" +
+			"      <condition attribute='objectid' operator='eq' value='" + ref.id + "'/>" +
+			"    </filter>" +
+			"  </entity>" +
+			"</fetch>";
 
 		let query = '?fetchXml=' + encodeURIComponent(fetchXml);
 
 		try {
 			const result = await this._context.webAPI.retrieveMultipleRecords(attachmentType, query);
+			if (result.entities.length == 0) { this._notesContainer.hidden = true; }
 			let items = [];
 			for (let i = 0; i < result.entities.length; i++) {
 				let record = result.entities[i];
@@ -139,7 +173,46 @@ export class GalleryFieldControl implements ComponentFramework.StandardControl<I
 		}
 	}
 
-	private RenderThumbnails(files: AttachedFile[]) {
+	private async GetEmailAttachemntsFromTimeline(ref: EntityReference) {
+
+		let fetchXml =
+			"<fetch>" +
+			" <entity name='activitymimeattachment'>" +
+			"	<link-entity name='email' from='activityid' to='objectid'>" +
+			"	  <filter>" +
+			"		<condition attribute='regardingobjectid' operator='eq' value='{" + ref.id + "}'/>" +
+			"	  </filter>" +
+			"	</link-entity>" +
+			"  </entity>" +
+			"</fetch>";
+
+
+		let query = '?fetchXml=' + encodeURIComponent(fetchXml);
+
+		try {
+			const result = await this._context.webAPI.retrieveMultipleRecords("activitymimeattachment", query);
+			if (result.entities.length == 0) { this._timelineEmailsContainer.hidden = true; }
+			let items = [];
+			for (let i = 0; i < result.entities.length; i++) {
+				let record = result.entities[i];
+				let fileName = <string>record["filename"];
+				let mimeType = <string>record["mimetype"];
+				let content = <string>record["body"] || <string>record["documentbody"];
+				let fileSize = <number>record["filesize"];
+
+				if (!this.supportedMimeTypes.includes(mimeType)) { continue; }
+
+				let file = new AttachedFile(fileName, mimeType, content, fileSize);
+				items.push(file);
+			}
+			return items;
+		}
+		catch (error) {
+			return [];
+		}
+	}
+
+	private RenderThumbnails(files: AttachedFile[], container: HTMLDivElement) {
 		for (let index = 0; index < files.length; index++) {
 			const file = files[index];
 
@@ -151,19 +224,22 @@ export class GalleryFieldControl implements ComponentFramework.StandardControl<I
 
 			let imageDiv = document.createElement("img");
 			imageDiv.src = 'data:' + file.mimeType + ';base64, ' + file.fileContent;
+			imageDiv.height = this._thumbnailHeight == null ? 150 :  this._thumbnailHeight;
+			imageDiv.width = this._thumbnailWidth == null ? 150 :  this._thumbnailWidth;
 			imageDiv.addEventListener("click", this._thumbnailClicked);
 
 			thumbnailDiv.appendChild(imageDiv);
 
 			let fileNameDiv = document.createElement("div");
 			fileNameDiv.classList.add("file-name");
+			fileNameDiv.style.width = (this._thumbnailWidth == null ? 162 :  this._thumbnailWidth+12).toString() + "px";
 			fileNameDiv.textContent = file.fileName;
 			fileNameDiv.onclick = (e => { this.DownloadFile(file); });
 
 			itemContainer.appendChild(thumbnailDiv);
 			itemContainer.appendChild(fileNameDiv);
 
-			this._mainDiv.appendChild(itemContainer);
+			container.appendChild(itemContainer);
 		}
 	}
 
