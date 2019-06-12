@@ -32,6 +32,9 @@ export class GalleryFieldControl implements ComponentFramework.StandardControl<I
 	private _thumbnailHeight: number | null;
 	private _thumbnailWidth: number | null;
 
+	private _minImageHeight: number | null;
+	private _minImageWidth: number | null;
+
 	private _notesContainer: HTMLDivElement;
 	private _timelineEmailsContainer: HTMLDivElement;
 
@@ -61,6 +64,9 @@ export class GalleryFieldControl implements ComponentFramework.StandardControl<I
 
 		this._thumbnailHeight = context.parameters.thumbnailHeight == undefined ? null : context.parameters.thumbnailHeight.raw;
 		this._thumbnailWidth = context.parameters.thumbnailWidth == undefined ? null : context.parameters.thumbnailWidth.raw;
+
+		this._minImageHeight = context.parameters.minImageHeight == undefined ? null : context.parameters.minImageHeight.raw;
+		this._minImageWidth = context.parameters.minImageWidth == undefined ? null : context.parameters.minImageWidth.raw;
 
 		let reference: EntityReference = new EntityReference(
 			(<any>context).page.entityTypeName,
@@ -195,12 +201,12 @@ export class GalleryFieldControl implements ComponentFramework.StandardControl<I
 			let items = [];
 			for (let i = 0; i < result.entities.length; i++) {
 				let record = result.entities[i];
-				let fileName = <string>record["filename"];
+
 				let mimeType = <string>record["mimetype"];
+				if (!this.supportedMimeTypes.includes(mimeType)) { continue; }
+				let fileName = <string>record["filename"];
 				let content = <string>record["body"] || <string>record["documentbody"];
 				let fileSize = <number>record["filesize"];
-
-				if (!this.supportedMimeTypes.includes(mimeType)) { continue; }
 
 				let file = new AttachedFile(fileName, mimeType, content, fileSize);
 				items.push(file);
@@ -212,7 +218,7 @@ export class GalleryFieldControl implements ComponentFramework.StandardControl<I
 		}
 	}
 
-	private RenderThumbnails(files: AttachedFile[], container: HTMLDivElement) {
+	private async RenderThumbnails(files: AttachedFile[], container: HTMLDivElement) {
 		for (let index = 0; index < files.length; index++) {
 			const file = files[index];
 
@@ -222,17 +228,24 @@ export class GalleryFieldControl implements ComponentFramework.StandardControl<I
 			let thumbnailDiv = document.createElement("div");
 			thumbnailDiv.classList.add("thumbnail");
 
-			let imageDiv = document.createElement("img");
-			imageDiv.src = 'data:' + file.mimeType + ';base64, ' + file.fileContent;
-			imageDiv.height = this._thumbnailHeight == null ? 150 :  this._thumbnailHeight;
-			imageDiv.width = this._thumbnailWidth == null ? 150 :  this._thumbnailWidth;
-			imageDiv.addEventListener("click", this._thumbnailClicked);
+			// let imageDiv = document.createElement("img");
+			// imageDiv.src = 'data:' + file.mimeType + ';base64, ' + file.fileContent;
+			let base64String =  'data:' + file.mimeType + ';base64, ' + file.fileContent;
+			let imageDiv = await this.GetLoadedImageElement(base64String);
 
+			if ((this._minImageHeight != null && imageDiv.height < this._minImageHeight) && (this._minImageWidth != null && imageDiv.width < this._minImageWidth)) {
+				imageDiv.remove();
+				continue;
+			}
+
+			imageDiv.height = this._thumbnailHeight == null ? 150 : this._thumbnailHeight;
+			imageDiv.width = this._thumbnailWidth == null ? 150 : this._thumbnailWidth;
+			imageDiv.addEventListener("click", this._thumbnailClicked);
 			thumbnailDiv.appendChild(imageDiv);
 
 			let fileNameDiv = document.createElement("div");
 			fileNameDiv.classList.add("file-name");
-			fileNameDiv.style.width = (this._thumbnailWidth == null ? 162 :  this._thumbnailWidth+12).toString() + "px";
+			fileNameDiv.style.width = (this._thumbnailWidth == null ? 162 : this._thumbnailWidth + 12).toString() + "px";
 			fileNameDiv.textContent = file.fileName;
 			fileNameDiv.onclick = (e => { this.DownloadFile(file); });
 
@@ -276,5 +289,13 @@ export class GalleryFieldControl implements ComponentFramework.StandardControl<I
 	private DownloadFile(file: AttachedFile): void {
 		const myFile = this.Base64ToFile(file.fileContent, file.fileName, file.mimeType);
 		FileSaver.saveAs(myFile, file.fileName);
+	}
+
+	private async GetLoadedImageElement(base64: string):Promise<HTMLImageElement>{
+		return new Promise((resolve, reject) => {
+			let imageDiv = document.createElement("img");
+			imageDiv.onload = () => resolve(imageDiv);
+			imageDiv.src = base64;
+		});
 	}
 }
