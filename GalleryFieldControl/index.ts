@@ -43,7 +43,8 @@ export class GalleryFieldControl implements ComponentFramework.StandardControl<I
 	private _thumbnailClicked: EventListenerOrEventListenerObject;
 	private _clearPreviewImage: EventListenerOrEventListenerObject;
 
-	private supportedMimeTypes: string[] = ["image/jpeg", "image/png", "image/svg+xml"];
+	private _supportedMimeTypes: string[] = ["image/jpeg", "image/png", "image/svg+xml"];
+	private _supportedExtensions : string[] = [".jpg", ".jpeg", ".png", ".svg", ".gif"];
 
 	constructor() {
 
@@ -167,7 +168,9 @@ export class GalleryFieldControl implements ComponentFramework.StandardControl<I
 				let content = <string>record["body"] || <string>record["documentbody"];
 				let fileSize = <number>record["filesize"];
 
-				if (!this.supportedMimeTypes.includes(mimeType)) { continue; }
+				const ext = fileName.substr(fileName.lastIndexOf('.')).toLowerCase();
+
+				if (!this._supportedMimeTypes.includes(mimeType) && !this._supportedExtensions.includes(ext)) { continue; }
 
 				let file = new AttachedFile(fileName, mimeType, content, fileSize);
 				items.push(file);
@@ -203,10 +206,13 @@ export class GalleryFieldControl implements ComponentFramework.StandardControl<I
 				let record = result.entities[i];
 
 				let mimeType = <string>record["mimetype"];
-				if (!this.supportedMimeTypes.includes(mimeType)) { continue; }
 				let fileName = <string>record["filename"];
 				let content = <string>record["body"] || <string>record["documentbody"];
 				let fileSize = <number>record["filesize"];
+
+				const ext = fileName.substr(fileName.lastIndexOf('.')).toLowerCase();
+
+				if (!this._supportedMimeTypes.includes(mimeType) && !this._supportedExtensions.includes(ext)) { continue; }
 
 				let file = new AttachedFile(fileName, mimeType, content, fileSize);
 				items.push(file);
